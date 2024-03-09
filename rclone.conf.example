@@ -1,0 +1,15 @@
+[b2]
+type = b2
+hard_delete = false
+versions = false
+account = <KEY_ID>
+key = <ACCOUNT_KEY>
+
+[backup_crypt]
+type = crypt
+filename_encryption = standard
+directory_name_encryption = false
+remote = b2:<BUCKET>/<PATH>
+password = <PASSWORD_ENCRYPTION>
+password2 = <PASSWORD_SEED>
+
