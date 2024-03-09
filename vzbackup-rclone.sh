@@ -45,14 +45,19 @@ fi
 
 # TODO: Split to support multiple types
 if [[ ${COMMAND} == 'backup-end' ]]; then
-	_src_copy_prefix=${_tarfile}
+	_src_files_copy=()
+
 	if [[ ${_vmtype} == 'qemu' ]]; then
-		_src_copy_prefix=${_target}
+		_src_files_copy+=("${_target}")
+		_src_files_copy+=("${_target}.notes")
 	fi
 
-	echo "Backing up ${src_copy_prefix} to remote storage"
-	rclone --config /root/.config/rclone/rclone.conf ${_rclone_common_options} ${_rclone_b2_options} \
-		copy "${_src_copy_prefix}*" backup_crypt:/$timepath
+	echo "Backing up ${_target} to remote storage"
+	for file in "${_src_files_copy[@]}"; do
+		echo "Processing file: $file"
+		rclone --config /root/.config/rclone/rclone.conf ${_rclone_common_options} ${_rclone_b2_options} \
+			copy ${file} backup_crypt:/$timepath
+	done
 fi
 
 if [[ ${COMMAND} == 'job-end' || ${COMMAND} == 'job-abort' ]]; then
