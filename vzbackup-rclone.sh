@@ -2,58 +2,71 @@
 # ./vzbackup-rclone.sh rehydrate YYYY/MM/DD file_name_encrypted.bin
 
 ############ /START CONFIG
-dumpdir="/mnt/pve/ExternalUSB/dump" # Set this to where your vzdump files are stored
-MAX_AGE=3                           # This is the age in days to keep local backup copies. Local backups older than this are deleted.
-bz_options="--fast-list --transfers 2 --b2-chunk-size 50M --b2-memory-pool-use-mmap"
+MAX_AGE=3 # This is the age in days to keep local backup copies. Local backups older than this are deleted.
+_rclone_common_options="-v --stats=60s --transfers=4 --checkers=4"
+_rclone_b2_options="--fast-list --transfers 2 --b2-chunk-size 50M --b2-memory-pool-use-mmap"
+_rclone_gdrive_options="--drive-chunk-size=32M"
 ############ /END CONFIG
 
-_bdir="$dumpdir"
-rcloneroot="$dumpdir/rclone"
-timepath="$(date +%Y)/$(date +%m)/$(date +%d)"
-rclonedir="$rcloneroot/$timepath"
+############ /START HOOK CONFIGS
 COMMAND=${1}
-rehydrate=${2} #enter the date you want to rehydrate in the following format: YYYY/MM/DD
-if [ ! -z "${3}" ]; then
-	CMDARCHIVE=$(echo "/${3}" | sed -e 's/\(.bin\)*$//g')
-fi
-tarfile=${TARFILE}
-exten=${tarfile#*.}
-filename=${tarfile%.*.*}
+MODE=${2}
+VMID=${3}
+_vmtype=${VMTYPE}
+_dumpdir=${DUMPDIR}
+_storeid=${STOREID}
+_hostname=${HOSTNAME} # Will depend on the phase / command
+_tarfile=${TARFILE}
+_target=${TARGET} # When VMTYPE == qemu TARGET is what we need to copy
+############ /END HOOK CONFIGS
 
+_bdir="${DUMPDIR}"
+timepath="$(date +%Y)/$(date +%m)/$(date +%d)"
+
+# TODO: Sort this one out , possibly split in separate script
 if [[ ${COMMAND} == 'rehydrate' ]]; then
+	rehydrate=${2} #enter the date you want to rehydrate in the following format: YYYY/MM/DD
+	if [ ! -z "${3}" ]; then
+		CMDARCHIVE=$(echo "/${3}" | sed -e 's/\(.bin\)*$//g')
+	fi
 	#echo "Please enter the date you want to rehydrate in the following format: YYYY/MM/DD"
 	#echo "For example, today would be: $timepath"
 	#read -p 'Rehydrate Date => ' rehydrate
-	rclone --config /root/.config/rclone/rclone.conf \
-		--drive-chunk-size=32M $bz_options copy backup_crypt:/$rehydrate$CMDARCHIVE $dumpdir \
-		-v --stats=60s --transfers=16 --checkers=16
+
+	#rclone --config /root/.config/rclone/rclone.conf \
+	#	--drive-chunk-size=32M $B2_OPTIONS copy backup_crypt:/$rehydrate$CMDARCHIVE $dumpdir \
+	#	-v --stats=60s --transfers=16 --checkers=16
 fi
 
 if [[ ${COMMAND} == 'job-start' ]]; then
 	echo "Deleting backups older than $MAX_AGE days."
-	find $dumpdir -type f -mtime +$MAX_AGE -exec /bin/rm -f {} \;
+	find $_dumpdir -type f -mtime +$MAX_AGE -exec /bin/rm -f {} \;
 fi
 
+# TODO: Split to support multiple types
 if [[ ${COMMAND} == 'backup-end' ]]; then
-	echo "Backing up $tarfile to remote storage"
-	#mkdir -p $rclonedir
-	#cp -v $tarfile $rclonedir
-	echo "rcloning $rclonedir"
-	#ls $rclonedir
-	rclone --config /root/.config/rclone/rclone.conf \
-		--drive-chunk-size=32M $bz_options copy $tarfile backup_crypt:/$timepath \
-		-v --stats=60s --transfers=16 --checkers=16
+	_src_copy_prefix=${_tarfile}
+	if [[ ${_vmtype} == 'qemu' ]]; then
+		_src_copy_prefix=${_target}
+	fi
+
+	echo "Backing up ${src_copy_prefix} to remote storage"
+	rclone --config /root/.config/rclone/rclone.conf ${_rclone_common_options} ${_rclone_b2_options} \
+		copy "${_src_copy_prefix}*" backup_crypt:/$timepath
 fi
 
 if [[ ${COMMAND} == 'job-end' || ${COMMAND} == 'job-abort' ]]; then
 	echo "Backing up main PVE configs"
 	_tdir=${TMP_DIR:-/var/tmp}
 	_tdir=$(mktemp -d $_tdir/proxmox-XXXXXXXX)
+
 	function clean_up {
 		echo "Cleaning up"
 		rm -rf $_tdir
 	}
+
 	trap clean_up EXIT
+
 	_now=$(date +%Y-%m-%d.%H.%M.%S)
 	_HOSTNAME=$(hostname -f)
 	_filename1="$_tdir/proxmoxetc.$_now.tar"
@@ -74,12 +87,8 @@ if [[ ${COMMAND} == 'job-end' || ${COMMAND} == 'job-abort' ]]; then
 	# copy config archive to backup folder
 	#mkdir -p $rclonedir
 	cp -v $_filename4 $_bdir/
-	#cp -v $_filename4 $rclonedir/
 	echo "rcloning $_filename4"
-	#ls $rclonedir
-	rclone --config /root/.config/rclone/rclone.conf \
-		--drive-chunk-size=32M $bz_options move $_filename4 backup_crypt:/$timepath \
-		-v --stats=60s --transfers=16 --checkers=16
 
-	#rm -rfv $rcloneroot
+	rclone --config /root/.config/rclone/rclone.conf ${_rclone_common_options} ${_rclone_b2_options} \
+		copy "${_filename4}" backup_crypt:/$timepath
 fi
