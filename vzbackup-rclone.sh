@@ -4,6 +4,7 @@
 ############ /START CONFIG
 dumpdir="/mnt/pve/ExternalUSB/dump" # Set this to where your vzdump files are stored
 MAX_AGE=3                           # This is the age in days to keep local backup copies. Local backups older than this are deleted.
+bz_options="--fast-list --transfers 2 --b2-chunk-size 50M --b2-memory-pool-use-mmap"
 ############ /END CONFIG
 
 _bdir="$dumpdir"
@@ -24,7 +25,7 @@ if [[ ${COMMAND} == 'rehydrate' ]]; then
 	#echo "For example, today would be: $timepath"
 	#read -p 'Rehydrate Date => ' rehydrate
 	rclone --config /root/.config/rclone/rclone.conf \
-		--drive-chunk-size=32M copy backup_crypt:/$rehydrate$CMDARCHIVE $dumpdir \
+		--drive-chunk-size=32M $bz_options copy backup_crypt:/$rehydrate$CMDARCHIVE $dumpdir \
 		-v --stats=60s --transfers=16 --checkers=16
 fi
 
@@ -40,7 +41,7 @@ if [[ ${COMMAND} == 'backup-end' ]]; then
 	echo "rcloning $rclonedir"
 	#ls $rclonedir
 	rclone --config /root/.config/rclone/rclone.conf \
-		--drive-chunk-size=32M copy $tarfile backup_crypt:/$timepath \
+		--drive-chunk-size=32M $bz_options copy $tarfile backup_crypt:/$timepath \
 		-v --stats=60s --transfers=16 --checkers=16
 fi
 
@@ -77,7 +78,7 @@ if [[ ${COMMAND} == 'job-end' || ${COMMAND} == 'job-abort' ]]; then
 	echo "rcloning $_filename4"
 	#ls $rclonedir
 	rclone --config /root/.config/rclone/rclone.conf \
-		--drive-chunk-size=32M move $_filename4 backup_crypt:/$timepath \
+		--drive-chunk-size=32M $bz_options move $_filename4 backup_crypt:/$timepath \
 		-v --stats=60s --transfers=16 --checkers=16
 
 	#rm -rfv $rcloneroot
