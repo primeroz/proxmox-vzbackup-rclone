@@ -2,7 +2,7 @@
 # ./vzbackup-rclone.sh rehydrate YYYY/MM/DD file_name_encrypted.bin
 
 ############ /START CONFIG
-MAX_AGE=3 # This is the age in days to keep local backup copies. Local backups older than this are deleted.
+MAX_AGE=30 # This is the age in days to keep local backup copies. Local backups older than this are deleted.
 _rclone_common_options="-v --stats=60s --transfers=4 --checkers=8"
 _rclone_b2_options="--fast-list --b2-chunk-size 50M --b2-memory-pool-use-mmap"
 _rclone_gdrive_options="--drive-chunk-size=32M"
