@@ -44,10 +44,10 @@ if [[ ${COMMAND} == 'rehydrate' ]]; then
 fi
 
 # Disabled since i have retention through proxmox backups ?
-if [[ ${COMMAND} == 'job-start' ]]; then
-	#echo "Deleting backups older than $MAX_AGE days."
-	#find $_dumpdir -type f -mtime +$MAX_AGE -exec /bin/rm -f {} \;
-fi
+#if [[ ${COMMAND} == 'job-start' ]]; then
+#	#echo "Deleting backups older than $MAX_AGE days."
+#	#find $_dumpdir -type f -mtime +$MAX_AGE -exec /bin/rm -f {} \;
+#fi
 
 # TODO: Split to support multiple types
 if [[ ${COMMAND} == 'backup-end' ]]; then
