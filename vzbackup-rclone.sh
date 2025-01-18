@@ -103,6 +103,8 @@ if [[ ${COMMAND} == 'job-end' || ${COMMAND} == 'job-abort' ]]; then
 	rclone --config /root/.config/rclone/rclone.conf ${_rclone_common_options} ${_rclone_b2_options} \
 		copy "${_filename4}" backup_crypt:/$timepath
 
+	# TODO have a better cleanup
+	#   - Check that disk exist locally and we had a successful backup ( avoid risk that removing the local disk for maintenance or failing bakcups cleanup all remote backups over time )
 	echo "Deleting Cloud files older than $CLOUD_MAX_AGE"
 	rclone --config /root/.config/rclone/rclone.conf ${_rclone_common_options} ${_rclone_b2_options} \
 		delete --min-age ${MAX_CLOUD_AGE}d backup_crypt:/
