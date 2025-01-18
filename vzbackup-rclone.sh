@@ -2,7 +2,8 @@
 # ./vzbackup-rclone.sh rehydrate YYYY/MM/DD file_name_encrypted.bin
 
 ############ /START CONFIG
-MAX_AGE=30 # This is the age in days to keep local backup copies. Local backups older than this are deleted.
+MAX_AGE=30       # This is the age in days to keep local backup copies. Local backups older than this are deleted.
+CLOUD_MAX_AGE=30 # This is the age in days to keep local backup copies. Local backups older than this are deleted.
 _rclone_common_options="-v --stats=60s --transfers=4 --checkers=8"
 _rclone_b2_options="--fast-list --b2-chunk-size 50M --b2-memory-pool-use-mmap"
 _rclone_gdrive_options="--drive-chunk-size=32M"
@@ -16,12 +17,16 @@ _vmtype=${VMTYPE}
 _dumpdir=${DUMPDIR}
 _storeid=${STOREID}
 _hostname=${HOSTNAME} # Will depend on the phase / command
-_tarfile=${TARFILE}
-_target=${TARGET} # When VMTYPE == qemu TARGET is what we need to copy
+_target=${TARGET}     # When VMTYPE == qemu TARGET is what we need to copy
+if [ -z ${TARGET+x} ]; then
+	tarfile=${TARFILE}
+else
+	tarfile=${TARGET}
+fi
 ############ /END HOOK CONFIGS
 
 _bdir="${DUMPDIR}"
-timepath="$(date +%Y)/$(date +%m)/$(date +%d)"
+timepath="$(date +%Y-%m-%d)"
 
 # TODO: Sort this one out , possibly split in separate script
 if [[ ${COMMAND} == 'rehydrate' ]]; then
@@ -38,9 +43,10 @@ if [[ ${COMMAND} == 'rehydrate' ]]; then
 	#	-v --stats=60s --transfers=16 --checkers=16
 fi
 
+# Disabled since i have retention through proxmox backups ?
 if [[ ${COMMAND} == 'job-start' ]]; then
-	echo "Deleting backups older than $MAX_AGE days."
-	find $_dumpdir -type f -mtime +$MAX_AGE -exec /bin/rm -f {} \;
+	#echo "Deleting backups older than $MAX_AGE days."
+	#find $_dumpdir -type f -mtime +$MAX_AGE -exec /bin/rm -f {} \;
 fi
 
 # TODO: Split to support multiple types
@@ -96,4 +102,8 @@ if [[ ${COMMAND} == 'job-end' || ${COMMAND} == 'job-abort' ]]; then
 
 	rclone --config /root/.config/rclone/rclone.conf ${_rclone_common_options} ${_rclone_b2_options} \
 		copy "${_filename4}" backup_crypt:/$timepath
+
+	echo "Deleting Cloud files older than $CLOUD_MAX_AGE"
+	rclone --config /root/.config/rclone/rclone.conf ${_rclone_common_options} ${_rclone_b2_options} \
+		delete --min-age ${MAX_CLOUD_AGE}d backup_crypt:/
 fi
